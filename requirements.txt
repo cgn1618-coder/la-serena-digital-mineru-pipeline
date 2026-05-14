@@ -1,0 +1,21 @@
+# MinerU Pipeline Dependencies
+# MDIC 2026 Competition — La Serena Digital
+
+# PDF Processing
+pymupdf>=1.23.0
+
+# MinerU API Communication
+requests>=2.31.0
+
+# Neo4j Graph Database
+neo4j>=5.14.0
+
+# Vector Database & Embeddings
+qdrant-client>=1.7.0
+sentence-transformers>=2.2.0
+
+# Tokenization for Chunking
+tiktoken>=0.5.0
+
+# Optional: for MinerU SDK (if using local processing instead of API)
+# mineru[core]>=1.0.0
