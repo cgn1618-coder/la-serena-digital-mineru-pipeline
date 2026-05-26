@@ -22,6 +22,11 @@ most comprehensive geological and ecological baselines publicly available for th
 semi-arid coast, covering geology, hydrology, flora, fauna, marine ecosystems, and
 regulatory frameworks.
 
+Dominga is located within the Coastal Iron Belt (Franja Ferrífera Costera),
+a Cretaceous metallogenic province hosting world-class Fe-Cu-Au deposits
+controlled by the Atacama Fault System — making it one of the most
+scientifically and socio-environmentally significant mining projects in Chile.
+
 ---
 
 ## 2. Primary Tool: MinerU
