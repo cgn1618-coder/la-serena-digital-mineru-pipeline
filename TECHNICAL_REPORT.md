@@ -212,5 +212,27 @@ under **CC-BY-4.0**. Raw PDFs are not redistributed.
 
 ---
 
+## 8. Related Achievements and Impact
+
+The Dominga project represents one of Chile's most studied socio-environmental
+conflicts, with active scientific and legal developments post-December 2024:
+
+- **January 2025**: Chile's Committee of Ministers formally rejected Dominga's
+  environmental permit due to ecosystem impacts on the Humboldt Archipelago
+  (SEIA Resolution, January 2025).
+- **September 2025**: Chile's Supreme Court reverted the case back to the
+  Committee of Ministers after 12 years of environmental review (UPI, Sept. 19, 2025).
+- **February 2026**: Academic paper "Fighting for the Future: From Societalisation
+  to Politicisation of Chile's Dominga Mining Project" published on ResearchGate,
+  analyzing 1,086 press articles (2011-2024) on Dominga's social conflict trajectory.
+- **March 2026**: Chilean government denied final environmental permit, citing
+  irreversible impacts to the Humboldt Penguin National Reserve.
+
+This dataset directly supports research on AI-assisted environmental impact
+assessment, providing structured scientific evidence from the EIA corpus that
+underpins these legal and policy decisions.
+
+---
+
 *Dataset constructed with MinerU v3.1.15 · PyMuPDF · Neo4j · Python 3.11*  
 *Coquimbo Region, Chile · UTM Zone 19S / WGS84*
