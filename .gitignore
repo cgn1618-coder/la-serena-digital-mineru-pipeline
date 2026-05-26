@@ -1,0 +1,9 @@
+.env
+*.env
+**/.env
+.hermes/
+browser_profile/
+__pycache__/
+*.pyc
+output/
+data/raw_pdfs/

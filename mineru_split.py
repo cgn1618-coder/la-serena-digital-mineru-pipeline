@@ -8,12 +8,12 @@ import json
 import requests
 import time
 
-TOKEN = os.getenv("MINERU_API_TOKEN", "")
+TOKEN = os.getenv("MINERU_TOKEN")
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 API_SUBMIT = "https://mineru.net/api/v4/extract/task"
-BASE_URL = os.getenv("BASE_URL", "https://laserenadigital.cl")
-PDF_DIR = os.getenv("PDF_DIR", "/root/portal/static/pdfs")
-TASKS_FILE = os.getenv("TASKS_FILE", "/tmp/mineru_tasks.json")
+BASE_URL = "https://laserenadigital.cl"
+PDF_DIR = "/root/portal/static/pdfs"
+TASKS_FILE = "/tmp/mineru_tasks.json"
 
 def get_page_count(filepath):
     try:
@@ -29,19 +29,19 @@ def split_pdf(filepath, max_pages=200):
     doc = fitz.open(filepath)
     total = doc.page_count
     parts = []
-
+    
     for i, start in enumerate(range(0, total, max_pages)):
         end = min(start + max_pages, total) - 1
         new_doc = fitz.open()
         new_doc.insert_pdf(doc, from_page=start, to_page=end)
-
+        
         base = os.path.splitext(os.path.basename(filepath))[0]
         out = os.path.join(PDF_DIR, f"{base}_p{start+1}-{end+1}.pdf")
         new_doc.save(out)
         new_doc.close()
         parts.append(out)
         print(f"  Split: {os.path.basename(out)} (pp {start+1}-{end+1})")
-
+    
     doc.close()
     return parts
 
@@ -49,13 +49,13 @@ def main():
     # Load current tasks
     with open(TASKS_FILE) as f:
         tasks = json.load(f)
-
+    
     # Identify failed tasks (page limit exceeded)
     failed = [t for t in tasks if t.get('status') == 'failed']
     print(f"Failed tasks to split: {len(failed)}")
-
+    
     new_tasks = []
-
+    
     for t in failed:
         # Find the PDF file
         for f in os.listdir(PDF_DIR):
@@ -63,15 +63,15 @@ def main():
                 filepath = os.path.join(PDF_DIR, f)
                 pages = get_page_count(filepath)
                 print(f"\n{t['filename'][:60]} ({pages} pages)")
-
+                
                 if pages > 200:
                     parts = split_pdf(filepath)
                     from urllib.parse import quote
-
+                    
                     for part_path in parts:
                         part_name = os.path.basename(part_path)
                         url = f"{BASE_URL}/static/pdfs/{quote(part_name)}"
-
+                        
                         payload = {
                             "url": url,
                             "language": "en",
@@ -80,7 +80,7 @@ def main():
                             "enable_formula": True,
                             "enable_table": True
                         }
-
+                        
                         try:
                             resp = requests.post(API_SUBMIT, headers=HEADERS, json=payload, timeout=60)
                             data = resp.json()
@@ -92,15 +92,15 @@ def main():
                                 print(f"    → ERROR: {data.get('msg')}")
                         except Exception as e:
                             print(f"    → EXCEPTION: {e}")
-
+                        
                         time.sleep(2)  # rate limit
                 break
-
+    
     # Update tasks file
     tasks.extend(new_tasks)
     with open(TASKS_FILE, 'w') as f:
         json.dump(tasks, f, indent=2)
-
+    
     print(f"\nNew tasks added: {len(new_tasks)}")
     print(f"Total tasks now: {len(tasks)}")
 

@@ -1,148 +1,139 @@
-# La Serena Digital — MinerU Pipeline
+# GeoAI Sci-Align Dataset — AGI4S Competition (Pista 1)
 
-**End-to-end document processing pipeline for the MDIC 2026 competition.**
-Extracts, parses, and ingests geological and ecological PDFs into a knowledge graph (Neo4j) with vector embeddings (Qdrant).
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
+[![Competition: AGI4S Heywhale](https://img.shields.io/badge/Competition-AGI4S%20Heywhale-blue)](https://www.heywhale.com)
 
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        PDF DOCUMENTS                                 │
-│                  (~300 PDFs, geology + ecology)                      │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  1. mineru_split.py                                                  │
-│     Split PDFs exceeding 200 pages into smaller chunks               │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  2. mineru_batch.py  /  mineru_poll.py                               │
-│     Submit PDFs to MinerU API (batch), poll results, download ZIPs   │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  3. mineru_ingest_neo4j.py                                           │
-│     Extract MinerU output ZIPs → Document + Figure nodes in Neo4j    │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  4. ingest.py                                                        │
-│     PyMuPDF extraction → chunking → embeddings (Qdrant) + Neo4j      │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│  5. ingest_legal.py  +  ingest_seia_projects.py                      │
-│     Chilean environmental law + SEIA mining projects → Neo4j graph   │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                     NEO4J KNOWLEDGE GRAPH                            │
-│  Documents → Chunks → Figures | Projects → Locations → Institutions  │
-│  Laws ↔ Decrees ↔ Zones | Mineral entities                           │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-## Pipeline Components
-
-| Script | Purpose | Dependencies |
-|--------|---------|-------------|
-| `mineru_split.py` | Split PDFs >200 pages and re-submit to MinerU API | `pymupdf`, `requests` |
-| `mineru_batch.py` | Batch submit PDFs to MinerU API v4 | `requests` |
-| `mineru_poll.py` | Poll MinerU tasks and download result ZIPs | `requests` |
-| `mineru_ingest_neo4j.py` | Extract MinerU ZIPs into Neo4j (Document + Figure nodes) | `neo4j` |
-| `ingest.py` | PDF → text → chunks → Qdrant embeddings + Neo4j entities | `pymupdf`, `tiktoken`, `neo4j`, `qdrant_client`, `sentence_transformers` |
-| `ingest_legal.py` | Chilean environmental legal framework → Neo4j graph | `neo4j` |
-| `ingest_seia_projects.py` | SEIA mining projects (Coquimbo) → Neo4j graph | `neo4j` |
-
-## Prerequisites
-
-- **Python 3.10+**
-- **Neo4j** (5.x+) running with graph database
-- **Qdrant** vector database (for `ingest.py`)
-- **MinerU API token** (for `mineru_batch.py`, `mineru_poll.py`, `mineru_split.py`)
-- **Web server** exposing PDFs via public URLs (for MinerU cloud processing)
-
-## Environment Variables
-
-All credentials are configured via environment variables — **no hardcoded secrets**:
-
-```bash
-# MinerU API
-export MINERU_API_TOKEN="your-mineru-token"
-
-# Neo4j
-export NEO4J_URI="bolt://localhost:7687"
-export NEO4J_USER="neo4j"
-export NEO4J_PASSWORD="your-password"
-
-# Qdrant
-export QDRANT_URL="http://localhost:6333"
-export QDRANT_API_KEY="your-qdrant-key"
-export QDRANT_COLLECTION="earth_sciences"
-
-# Embedding model
-export EMBEDDING_MODEL="BAAI/bge-m3"
-
-# Paths
-export BASE_URL="https://your-server.com"
-export PDF_DIR="/path/to/pdfs"
-export OUTPUT_DIR="/path/to/output"
-```
-
-## Installation
-
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-### 1. Split large PDFs (optional)
-```bash
-python mineru_split.py
-```
-
-### 2. Process PDFs through MinerU API
-```bash
-# Submit all PDFs to MinerU batch API
-python mineru_batch.py
-
-# Or poll and download results from existing tasks
-python mineru_poll.py
-```
-
-### 3. Ingest MinerU results into Neo4j
-```bash
-python mineru_ingest_neo4j.py
-```
-
-### 4. Direct PDF ingestion (PyMuPDF + embeddings)
-```bash
-python ingest.py /path/to/document.pdf
-```
-
-### 5. Ingest legal framework and SEIA projects
-```bash
-python ingest_legal.py
-python ingest_seia_projects.py
-```
-
-## Data Categories
-
-- **Geología**: Geology PDFs → classified based on filename keywords
-- **Ecología**: Ecology/Environmental PDFs → classified based on filename keywords
-
-## License
-
-Apache 2.0 — See [LICENSE](LICENSE)
+Dataset científico **Sci-Align** de geología ambiental chilena construido para la
+**Pista 1 — Creación de bases de corpus** del concurso AGI4S (sh_AI Lab / Heywhale).
 
 ---
 
-*Built for the MDIC 2026 competition — La Serena Digital*
+## Descripción
+
+Este repositorio contiene el pipeline de construcción de un dataset multimodal alineado
+(**Sci-Align**) basado en el expediente de Evaluación de Impacto Ambiental (EIA) del
+proyecto minero **Dominga** (SEIA, Región de Coquimbo, Chile).
+
+El dataset transforma documentos científicos legales trazables en conocimiento estructurado
+mediante una ontología geológico-ambiental de 5 capas, integrando:
+
+- Geología base (litología, estructuras, hidrogeología)
+- Línea de base ecológica (flora, fauna, ecosistemas marinos)
+- Datos espaciales georreferenciados (UTM 19S / WGS84)
+- Cadena de trazabilidad metodológica (normas NCh, DS, EPA)
+- Contexto normativo ambiental chileno (RCA, áreas protegidas, comunidades)
+
+---
+
+## Herramienta principal: MinerU
+
+Siguiendo el requisito del concurso, **MinerU** es la cadena de herramientas principal
+para extracción de contenido de PDFs científicos:
+
+```bash
+# Pipeline MinerU sobre expediente Dominga
+python mineru_batch.py --input data/raw_pdfs/ --output output/mineru/
+```
+
+MinerU extrae texto estructurado, tablas y figuras preservando la jerarquía del documento,
+lo que permite alineación precisa entre contenido y metadatos científicos.
+
+Otras herramientas open source utilizadas: `PyMuPDF`, `pdfplumber`, `Neo4j`, `Qdrant`.
+Todas las dependencias y versiones están documentadas en `requirements.txt`.
+
+---
+
+## Estructura del repositorio
+
+```
+├── mineru_batch.py          # Pipeline principal MinerU → JSON estructurado
+├── mineru_ingest_neo4j.py   # JSON MinerU → grafo Neo4j
+├── ingest.py                # Ingesta general con embeddings Qdrant
+├── ingest_legal.py          # Ingesta documentos normativos
+├── ingest_seia_projects.py  # Ingesta metadatos proyectos SEIA
+├── requirements.txt         # Dependencias y versiones
+├── .env.example             # Variables de entorno requeridas (sin credenciales)
+└── dataset/
+    └── sci_align/           # Dataset final en formato JSONL
+```
+
+---
+
+## Ontología geológico-ambiental
+
+El grafo de conocimiento (Neo4j) implementa una ontología de 5 capas:
+
+| Capa | Entidades principales |
+|------|-----------------------|
+| Territorio físico | UnidadLitologica, FallaEstructura, CuencaHidrologica, Acuifero |
+| Proyecto | Proyecto, ComponenteProyecto, AreaInfluencia |
+| Línea de base | EstacionMuestreo, ParametroMedido, ResultadoAnalitico, Especie |
+| Trazabilidad | Metodologia, Laboratorio, DocumentoFuente |
+| Contexto normativo | NormaAmbiental, AreaProtegida, RegionComuna |
+
+Toda entidad requiere `id` y `source` (documento + página SEIA).
+Toda relación es trazable a evidencia documental.
+
+---
+
+## Formato del dataset (Sci-Align JSONL)
+
+Cada registro integra texto, coordenadas, entidades y relaciones alineadas:
+
+```json
+{
+  "id": "dominga_geo_001",
+  "paradigma": "Sci-Align",
+  "dominio": "geologia_ambiental",
+  "fuente": {
+    "documento": "EIA_Dominga_Cap3_LineaBase_Geologia.pdf",
+    "pagina": 45,
+    "procesado_con": "mineru"
+  },
+  "entidades": [...],
+  "relaciones": [...],
+  "multimodal": {
+    "coordenadas_wgs84": [-29.847, -71.123],
+    "figura_referencia": "Fig_3_2_mapa_geologia.png"
+  }
+}
+```
+
+---
+
+## Instalación
+
+```bash
+git clone https://github.com/cgn1618-coder/la-serena-digital-mineru-pipeline
+cd la-serena-digital-mineru-pipeline
+pip install -r requirements.txt
+cp .env.example .env
+# Editar .env con tus credenciales locales
+```
+
+---
+
+## Fuentes de datos
+
+- **Expediente Dominga** — Sistema de Evaluación de Impacto Ambiental (SEIA), Chile
+  https://seia.sea.gob.cl
+- **SciVerse** — Datasets científicos de referencia del concurso
+  https://sciverse.opendatalab.com/
+
+Los documentos del SEIA son de acceso público. El dataset derivado se publica bajo
+licencia **CC-BY-4.0** — los datos brutos (PDFs originales) no se redistribuyen.
+
+---
+
+## Licencia
+
+- **Código**: Apache 2.0
+- **Dataset**: Creative Commons Attribution 4.0 (CC-BY-4.0)
+
+---
+
+## Concurso
+
+**AGI4S — Pista 1: Creación de bases de corpus**
+Organizado por sh_AI Lab en Heywhale.
+Fase 1: marzo–mayo 2026.

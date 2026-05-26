@@ -6,9 +6,8 @@ and relationships between them.
 import os
 from neo4j import GraphDatabase
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
+URI = "bolt://localhost:7687"
+AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD"))
 
 # Legal framework structure based on marco_legal_ambiental_chile.md
 FRAMEWORK = {
@@ -51,8 +50,8 @@ FRAMEWORK = {
 }
 
 def ingest():
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-
+    driver = GraphDatabase.driver(URI, auth=AUTH)
+    
     with driver.session() as session:
         # Create constraints
         for label in ["Institution", "Law", "Decree", "Regulation", "Zone", "InternationalTreaty"]:
@@ -60,7 +59,7 @@ def ingest():
                 session.run(f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.name IS UNIQUE")
             except:
                 pass
-
+        
         # Create institutions
         for inst in FRAMEWORK["institutions"]:
             session.run("""
@@ -71,7 +70,7 @@ def ingest():
                     i.role = $role
             """, inst)
         print(f"  Institutions: {len(FRAMEWORK['institutions'])}")
-
+        
         # Create laws
         for law in FRAMEWORK["laws"]:
             session.run("""
@@ -81,7 +80,7 @@ def ingest():
                     l.summary = $summary
             """, law)
         print(f"  Laws: {len(FRAMEWORK['laws'])}")
-
+        
         # Create decrees
         for dec in FRAMEWORK["decrees"]:
             session.run("""
@@ -90,7 +89,7 @@ def ingest():
                     d.summary = $summary
             """, dec)
         print(f"  Decrees: {len(FRAMEWORK['decrees'])}")
-
+        
         # Create zones
         for zone in FRAMEWORK["zones"]:
             session.run("""
@@ -100,7 +99,7 @@ def ingest():
                     z.decree = $decree
             """, zone)
         print(f"  Zones: {len(FRAMEWORK['zones'])}")
-
+        
         # Create international treaties
         for treaty in FRAMEWORK["international"]:
             session.run("""
@@ -110,7 +109,7 @@ def ingest():
                     t.summary = $summary
             """, {**treaty, "ratified": str(treaty["ratified"])})
         print(f"  Treaties: {len(FRAMEWORK['international'])}")
-
+        
         # Create SanctionType nodes (needed for HAS_POWER relationships)
         sanction_types = [
             {"name": "Amonestación por escrito"},
@@ -164,7 +163,7 @@ def ingest():
             ("20.417", "ESTABLISHES", "Superintendencia del Medio Ambiente", "Law", "Institution"),
             ("20.600", "ESTABLISHES", "Tribunales Ambientales", "Law", "Institution"),
         ]
-
+        
         created = 0
         failed = 0
         for src, rel, tgt, src_type, tgt_type in relationships:
@@ -186,9 +185,9 @@ def ingest():
             except Exception as e:
                 failed += 1
                 print(f"    ✗ ERROR: {src} -[{rel}]-> {tgt}: {e}")
-
+        
         print(f"  Relaciones creadas: {created}, fallidas: {failed}")
-
+        
         # Count everything
         result = session.run("""
             MATCH (n)
@@ -199,7 +198,7 @@ def ingest():
         print("\n  Legal graph summary:")
         for r in result:
             print(f"    {r['type']}: {r['count']}")
-
+    
     driver.close()
     print("\n✅ Legal framework ingested to Neo4j")
 

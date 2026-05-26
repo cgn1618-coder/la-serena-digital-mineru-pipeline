@@ -9,11 +9,11 @@ import time
 import os
 import sys
 
-TOKEN = os.getenv("MINERU_API_TOKEN", "")
+TOKEN = os.getenv("MINERU_TOKEN")
 
-BASE_URL = os.getenv("BASE_URL", "https://laserenadigital.cl")
-PDF_DIR = os.getenv("PDF_DIR", "/root/portal/static/pdfs")
-OUTPUT_DIR = os.getenv("OUTPUT_DIR", "/root/pipeline/mineru_output")
+BASE_URL = "https://laserenadigital.cl"
+PDF_DIR = "/root/portal/static/pdfs"
+OUTPUT_DIR = "/root/pipeline/mineru_output"
 API_SUBMIT = "https://mineru.net/api/v4/extract/task"
 API_POLL = "https://mineru.net/api/v4/extract/task/{}"
 API_BATCH = "https://mineru.net/api/v4/file-urls/batch"
@@ -44,15 +44,15 @@ def get_pdf_files():
 def submit_batch(pdfs, batch_size=10):
     """Submit PDFs in batches to MinerU API."""
     all_tasks = []
-
+    
     for i in range(0, len(pdfs), batch_size):
         batch = pdfs[i:i+batch_size]
         batch_num = i//batch_size + 1
         print(f"\n{'='*60}")
         print(f"BATCH {batch_num}: {len(batch)} files")
-
+        
         urls = [p['url'] for p in batch]
-
+        
         # Submit via batch endpoint
         payload = {
             "urls": urls,
@@ -62,11 +62,11 @@ def submit_batch(pdfs, batch_size=10):
             "enable_formula": True,
             "enable_table": True
         }
-
+        
         try:
             resp = requests.post(API_BATCH, headers=HEADERS, json=payload, timeout=120)
             data = resp.json()
-
+            
             if data.get('code') == 0:
                 batch_id = data['data']['batch_id']
                 print(f"  Batch ID: {batch_id}")
@@ -90,11 +90,11 @@ def submit_batch(pdfs, batch_size=10):
                 task = submit_single(p)
                 if task:
                     all_tasks.append(task)
-
+        
         # Rate limit: 50 files/min = 10 files per batch = wait at least 12s between batches
         if i + batch_size < len(pdfs):
             time.sleep(15)
-
+    
     return all_tasks
 
 def submit_single(pdf):
@@ -123,7 +123,7 @@ def submit_single(pdf):
 def poll_batch_results(tasks):
     """Poll batch results and download ZIPs."""
     batch_ids = set(t['batch_id'] for t in tasks if 'batch_id' in t)
-
+    
     for batch_id in batch_ids:
         print(f"\nPolling batch: {batch_id}")
         max_polls = 30
@@ -135,14 +135,14 @@ def poll_batch_results(tasks):
                     timeout=60
                 )
                 data = resp.json()
-
+                
                 if data.get('code') == 0:
                     results = data.get('data', {}).get('results', [])
                     done = sum(1 for r in results if r.get('state') == 'done')
                     failed = sum(1 for r in results if r.get('state') == 'failed')
                     running = sum(1 for r in results if r.get('state') == 'running')
                     print(f"  [{attempt+1}] done={done}, running={running}, failed={failed}")
-
+                    
                     if running == 0:
                         # All done or failed
                         for r in results:
@@ -154,9 +154,9 @@ def poll_batch_results(tasks):
                         break
             except Exception as e:
                 print(f"  Poll error: {e}")
-
+            
             time.sleep(15)
-
+        
         # Also handle individually-submitted tasks
         for t in tasks:
             if 'task_id' in t and t['status'] == 'submitted':
@@ -170,7 +170,7 @@ def poll_single(task):
             resp = requests.get(API_POLL.format(task_id), headers=HEADERS, timeout=30)
             data = resp.json()
             state = data.get('data', {}).get('state', '')
-
+            
             if state == 'done':
                 zip_url = data['data'].get('full_zip_url')
                 if zip_url:
@@ -189,15 +189,15 @@ def poll_single(task):
 def download_zip(filename, url):
     """Download and save ZIP result."""
     safe_name = filename.replace('/', '_').replace(' ', '_')[:80]
-
+    
     # Determine category
     if 'ecology' in filename.lower() or 'ecology' in safe_name.lower() or 'Environmental' in filename:
         subdir = 'ecologia'
     else:
         subdir = 'geologia'
-
+    
     out_path = os.path.join(OUTPUT_DIR, subdir, safe_name + '.zip')
-
+    
     try:
         resp = requests.get(url, timeout=120)
         with open(out_path, 'wb') as f:
@@ -210,34 +210,34 @@ def download_zip(filename, url):
 def main():
     pdfs = get_pdf_files()
     total_size = sum(p['size_mb'] for p in pdfs)
-
+    
     print(f"=== MinerU Batch Processing ===")
     print(f"Total PDFs: {len(pdfs)}")
     print(f"Total size: {total_size:.0f} MB")
     print(f"Output dir: {OUTPUT_DIR}")
-
+    
     # Show what we're processing
     for p in pdfs:
         print(f"  [{p['size_mb']:.0f}MB] {p['filename'][:70]}")
-
+    
     # Submit in batches
     tasks = submit_batch(pdfs, batch_size=10)
     print(f"\nSubmitted: {len(tasks)} tasks")
-
+    
     # Save task list for recovery
     with open('/tmp/mineru_tasks.json', 'w') as f:
         json.dump(tasks, f, indent=2)
-
+    
     # Poll and download
     poll_batch_results(tasks)
-
+    
     # Summary
     done = sum(1 for t in tasks if t['status'] == 'done')
     failed = sum(1 for t in tasks if t['status'] == 'failed')
     print(f"\n=== SUMMARY ===")
     print(f"Done: {done}/{len(tasks)}")
     print(f"Failed: {failed}/{len(tasks)}")
-
+    
     # Count outputs
     geo_zips = len(os.listdir(os.path.join(OUTPUT_DIR, 'geologia')))
     eco_zips = len(os.listdir(os.path.join(OUTPUT_DIR, 'ecologia')))
