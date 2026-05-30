@@ -108,7 +108,8 @@ Entities were extracted from MinerU output via dedicated scripts:
 
 | Metric | Value |
 |--------|-------|
-| **Total records** | **402** |
+| **Total records (Dominga)** | **411** |
+| Total dataset records (incl. Coquimbo theses) | 495 |
 | Records with UTM coordinates | 200 |
 | Records with explicit relations | 209 |
 | Source document pages covered | 933 |
@@ -120,19 +121,21 @@ Entities were extracted from MinerU output via dedicated scripts:
 | Entity Type | Records | Notes |
 |-------------|---------|-------|
 | `EstacionMuestreo` | 212 | 200 with UTM 19S / WGS84 coordinates |
-| `Especie` | 102 | 83 Animalia · 19 Plantae |
+| `Especie` | 111 | 92 Animalia · 19 Plantae (binomials curated; chunk-split names corrected) |
 | `CuencaHidrologica` | 55 | Coquimbo region drainage basins |
 | `UnidadLitologica` | 22 | Geological formations + plutonic complexes |
 | `Acuifero` | 6 | Free/phreatic aquifer systems |
 | `FallaEstructura` | 5 | Fault systems incl. SFET and SFA |
-| **Total** | **402** | |
+| **Total** | **411** | |
 
 ### 4.3 Relation Types Present
 
 | Relation | Count | Semantics |
 |----------|-------|-----------|
 | `EN_CUENCA` | 209 | Station / aquifer located within drainage basin |
-| `INFLUENCIA_HIDROLOGICA` | 2 | Fault influence on aquifer or lithounit |
+
+All relations carry an `evidencia` object (`documento` + `pagina`); the Coquimbo-thesis
+records were normalized to the same evidence schema for cross-file consistency.
 
 ### 4.4 Species Breakdown
 
@@ -193,7 +196,9 @@ python scripts/export_sci_align_full.py
 # 3. Append confirmed biological species
 python scripts/append_species_sci_align.py
 
-# Final output: dataset/sci_align/dominga_geo_align.jsonl (402 records)
+# Final output: dataset/sci_align/dominga_geo_align.jsonl (411 records; 495 with theses)
+# Validate traceability + completeness and regenerate stats:
+python scripts/validate_dataset.py
 ```
 
 Source PDFs are publicly available via SEIA Chile. The derived dataset is published

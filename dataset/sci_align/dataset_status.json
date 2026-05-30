@@ -1,16 +1,21 @@
 {
-  "actualizado": "2026-05-30T19:16:32.194872+00:00",
-  "ok": false,
+  "actualizado": "2026-05-30T23:36:54.518694+00:00",
+  "ok": true,
+  "validacion": {
+    "errores": 0,
+    "muestra": []
+  },
   "stats": {
     "archivos": {
       "dominga_geo_align.jsonl": {
-        "registros": 300,
+        "registros": 411,
         "tipos": {
           "UnidadLitologica": 22,
           "FallaEstructura": 5,
           "CuencaHidrologica": 55,
           "Acuifero": 6,
-          "EstacionMuestreo": 212
+          "EstacionMuestreo": 212,
+          "Especie": 111
         }
       },
       "tesis_coquimbo_align.jsonl": {
@@ -28,13 +33,14 @@
       }
     },
     "totales": {
-      "registros": 384,
+      "registros": 495,
       "tipos": {
         "UnidadLitologica": 31,
         "FallaEstructura": 14,
         "CuencaHidrologica": 79,
         "Acuifero": 6,
         "EstacionMuestreo": 212,
+        "Especie": 111,
         "EntidadMinera": 5,
         "DepositoMineral": 6,
         "MineralEspecie": 22,
@@ -42,13 +48,14 @@
         "IndiceEcologico": 4
       },
       "documentos_fuente": [
+        "Capitulo_4-_Evaluacion_de_Impactos.pdf",
         "EIA_Dominga_Cap2_LineaBase.pdf",
         "uchile_2250_130411_hidrogeologia_andacollo.pdf",
         "uchile_2250_167800_mineralogía_geoquímica_talcuna.pdf",
         "ucn_aguas_subterraneas_ovalle.pdf",
         "ucn_riberas_rio_elqui.pdf"
       ],
-      "n_documentos_fuente": 5
+      "n_documentos_fuente": 6
     }
   }
 }

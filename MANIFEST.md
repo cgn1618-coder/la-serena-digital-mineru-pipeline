@@ -1,7 +1,7 @@
 # MANIFEST — Entrega AGI4S / MDIC2026 · Pista 1 (Sci-Align)
 
-Equipo: **La Serena Digital** · Generado: 2026-05-31 01:23 UTC
-Dataset: **384 registros** (dominga_geo_align.jsonl: 300 + tesis_coquimbo_align.jsonl: 84) · Licencia datos: CC-BY-4.0
+Equipo: **La Serena Digital** · Generado: 2026-05-31 01:38 UTC
+Dataset: **495 registros** (dominga_geo_align.jsonl: 411 + tesis_coquimbo_align.jsonl: 84) · Licencia datos: CC-BY-4.0
 
 ## Mapa de requisitos del concurso → contenido del ZIP
 | Requisito | Archivo(s) |
