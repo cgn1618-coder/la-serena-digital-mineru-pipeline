@@ -46,6 +46,7 @@ Todas las dependencias y versiones están documentadas en `requirements.txt`.
 ## Estructura del repositorio
 
 ```
+├── auth.py                  # Puerta de credenciales: todo acceso pasa por aquí
 ├── mineru_batch.py          # Pipeline principal MinerU → JSON estructurado
 ├── mineru_ingest_neo4j.py   # JSON MinerU → grafo Neo4j
 ├── ingest.py                # Ingesta general con embeddings Qdrant
@@ -53,6 +54,7 @@ Todas las dependencias y versiones están documentadas en `requirements.txt`.
 ├── ingest_seia_projects.py  # Ingesta metadatos proyectos SEIA
 ├── requirements.txt         # Dependencias y versiones
 ├── .env.example             # Variables de entorno requeridas (sin credenciales)
+├── tests/                   # Tests de la puerta de credenciales
 └── dataset/
     └── sci_align/           # Dataset final en formato JSONL
 ```
@@ -108,8 +110,53 @@ git clone https://github.com/cgn1618-coder/la-serena-digital-mineru-pipeline
 cd la-serena-digital-mineru-pipeline
 pip install -r requirements.txt
 cp .env.example .env
-# Editar .env con tus credenciales locales
+$EDITOR .env          # sustituye todos los valores your_..._here
+python auth.py        # verifica que los servicios aceptan las credenciales
 ```
+
+---
+
+## Credenciales
+
+Todo acceso a Neo4j, Qdrant y MinerU pasa por `auth.py`. Ningún módulo lee una
+credencial por su cuenta, de modo que no hay forma de ejecutar una parte del
+pipeline sin autenticarse antes.
+
+`auth.py` garantiza, en cada arranque:
+
+| Comprobación | Qué evita |
+|--------------|-----------|
+| Carga `.env` automáticamente | Que el archivo que pide este README se ignore en silencio |
+| Rechaza credenciales ausentes o vacías | Cabeceras `Bearer None` y conexiones sin contraseña |
+| Rechaza los placeholders `your_..._here` | Ejecutar con un `.env` sin editar |
+| Exige `QDRANT_API_KEY` | Escribir vectores de forma anónima sin darse cuenta |
+| Verifica la credencial contra el servicio | Descubrir el fallo a mitad de la ingesta |
+| Comprueba la caducidad del JWT de MinerU | Gastar cuota con un token vencido |
+| Aborta el lote ante un 401/403 | Repetir el mismo rechazo en cada PDF |
+
+Diagnóstico antes de una ejecución larga:
+
+```bash
+python auth.py                # revisa los tres servicios; sale 0 si todo va bien
+python auth.py neo4j qdrant   # solo los indicados
+```
+
+Los secretos nunca se imprimen enteros: los mensajes de error los muestran
+ocultos (`abcd…wxyz (128 chars)`).
+
+El acceso anónimo a Qdrant existe solo como excepción explícita
+(`QDRANT_ALLOW_ANONYMOUS=true`) y registra un aviso en cada conexión.
+
+---
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Los tests de `auth.py` no necesitan red ni las dependencias pesadas del
+pipeline: los SDK se importan dentro de cada función.
 
 ---
 

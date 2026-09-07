@@ -8,26 +8,26 @@ import uuid
 import hashlib
 import logging
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict, Optional
 
 import pymupdf  # PyMuPDF
 import tiktoken
-from neo4j import GraphDatabase
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
+
+from auth import ensure_env_loaded, neo4j_driver, qdrant_client
 
 # ---------------------------------------------------------------------------
 # Configuración
 # ---------------------------------------------------------------------------
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+# Las credenciales (NEO4J_PASSWORD, QDRANT_API_KEY) las lee y valida auth.py.
+# Aquí solo queda configuración no sensible.
+ensure_env_loaded()
 
-QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "earth_sciences")
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-m3")
@@ -43,15 +43,10 @@ log = logging.getLogger("ingest")
 # Inicialización de clientes
 # ---------------------------------------------------------------------------
 
-def init_neo4j():
-    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-    driver.verify_connectivity()
-    log.info("Neo4j conectado")
-    return driver
-
-
+@lru_cache(maxsize=1)
 def init_qdrant():
-    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    """Cliente Qdrant autenticado, con la colección de trabajo asegurada."""
+    client = qdrant_client()  # exige y verifica QDRANT_API_KEY
     # Crear colección si no existe
     collections = [c.name for c in client.get_collections().collections]
     if QDRANT_COLLECTION not in collections:
@@ -66,6 +61,7 @@ def init_qdrant():
     return client
 
 
+@lru_cache(maxsize=1)
 def init_embedder():
     log.info(f"Cargando modelo de embeddings: {EMBEDDING_MODEL}")
     model = SentenceTransformer(EMBEDDING_MODEL)
@@ -334,9 +330,11 @@ def ingest_pdf(pdf_path: str) -> str:
     log.info(f"Entidades detectadas: {', '.join(f'{k}: {len(v)}' for k, v in entities.items())}")
 
     # 5. Crear nodos en Neo4j
-    driver = init_neo4j()
-    doc_id = create_graph_nodes(driver, doc_info, chunks, qdrant_ids, entities)
-    driver.close()
+    driver = neo4j_driver()  # exige y verifica NEO4J_PASSWORD
+    try:
+        doc_id = create_graph_nodes(driver, doc_info, chunks, qdrant_ids, entities)
+    finally:
+        driver.close()
 
     log.info(f"Ingesta completada. Document ID: {doc_id}")
     return doc_id

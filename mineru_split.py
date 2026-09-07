@@ -8,8 +8,8 @@ import json
 import requests
 import time
 
-TOKEN = os.getenv("MINERU_TOKEN")
-HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+from auth import CredentialError, mineru_headers, raise_for_auth
+
 API_SUBMIT = "https://mineru.net/api/v4/extract/task"
 BASE_URL = "https://laserenadigital.cl"
 PDF_DIR = "/root/portal/static/pdfs"
@@ -21,7 +21,8 @@ def get_page_count(filepath):
         pages = doc.page_count
         doc.close()
         return pages
-    except:
+    except Exception as exc:
+        print(f"  ⚠️ No se pudo leer {os.path.basename(filepath)}: {exc}")
         return 0
 
 def split_pdf(filepath, max_pages=200):
@@ -46,6 +47,8 @@ def split_pdf(filepath, max_pages=200):
     return parts
 
 def main():
+    mineru_headers()  # puerta de credenciales antes de dividir y reenviar
+
     # Load current tasks
     with open(TASKS_FILE) as f:
         tasks = json.load(f)
@@ -82,7 +85,8 @@ def main():
                         }
                         
                         try:
-                            resp = requests.post(API_SUBMIT, headers=HEADERS, json=payload, timeout=60)
+                            resp = requests.post(API_SUBMIT, headers=mineru_headers(), json=payload, timeout=60)
+                            raise_for_auth(resp)
                             data = resp.json()
                             if data.get('code') == 0:
                                 tid = data['data']['task_id']
@@ -90,6 +94,8 @@ def main():
                                 print(f"    → task_id: {tid}")
                             else:
                                 print(f"    → ERROR: {data.get('msg')}")
+                        except CredentialError:
+                            raise
                         except Exception as e:
                             print(f"    → EXCEPTION: {e}")
                         

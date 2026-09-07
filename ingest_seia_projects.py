@@ -2,15 +2,14 @@
 Ingest SEIA mining projects from Coquimbo Region into Neo4j.
 Creates Project nodes linked to Location, Law, and Institution nodes.
 """
-import os
-from neo4j import GraphDatabase
 import json
 
-URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD"))
+from neo4j.exceptions import Neo4jError
+
+from auth import neo4j_driver
 
 def ingest():
-    driver = GraphDatabase.driver(URI, auth=AUTH)
+    driver = neo4j_driver()  # exige y verifica NEO4J_PASSWORD
     
     with open("/root/pipeline/gov_data/seia_coquimbo_merged.json", encoding='utf-8') as f:
         projects = json.load(f)
@@ -22,8 +21,8 @@ def ingest():
         try:
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (p:Project) REQUIRE p.seia_id IS UNIQUE")
             session.run("CREATE CONSTRAINT IF NOT EXISTS FOR (l:Location) REQUIRE l.name IS UNIQUE")
-        except:
-            pass
+        except Neo4jError as exc:
+            print(f"  ⚠️ Constraints no creadas: {exc}")
         
         count = 0
         eia_count = 0

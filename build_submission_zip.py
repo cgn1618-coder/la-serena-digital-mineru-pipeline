@@ -143,9 +143,20 @@ def main():
         p = f"{ROOT}/scripts/{s}"
         if os.path.exists(p):
             shutil.copy2(p, f"{STAGE}/code/")
-    for s in glob.glob(f"{REPO}/mineru_*.py") + [f"{REPO}/ingest.py"]:
+    # auth.py es obligatorio: los módulos del pipeline lo importan, así que sin
+    # él el código entregado no arranca.
+    repo_code = (
+        glob.glob(f"{REPO}/mineru_*.py")
+        + [f"{REPO}/auth.py", f"{REPO}/ingest.py"]
+        + glob.glob(f"{REPO}/ingest_*.py")
+    )
+    for s in sorted(set(repo_code)):
         if os.path.exists(s):
             shutil.copy2(s, f"{STAGE}/code/")
+        elif s.endswith("auth.py"):
+            raise FileNotFoundError(
+                f"Falta {s}: el código entregado importa auth.py y no arrancaría sin él."
+            )
     shutil.copy2(__file__, f"{STAGE}/code/")
 
     # 5) Documentos y PPT

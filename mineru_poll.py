@@ -9,13 +9,17 @@ import time
 import os
 import sys
 
-TOKEN = os.getenv("MINERU_TOKEN")
+from auth import CredentialError, mineru_headers, raise_for_auth
 
-HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 API_POLL = "https://mineru.net/api/v4/extract/task/{}"
 OUTPUT_DIR = "/root/pipeline/mineru_output"
 
+# Cota superior de rondas para no quedarse girando si una tarea nunca termina.
+MAX_ROUNDS = int(os.getenv("MINERU_POLL_MAX_ROUNDS", "120"))
+
 def poll_all():
+    mineru_headers()  # puerta de credenciales antes de cualquier petición
+
     with open('/tmp/mineru_tasks.json') as f:
         tasks = json.load(f)
     
@@ -23,7 +27,7 @@ def poll_all():
     print(f"Pending tasks: {len(pending)}/{len(tasks)}")
     
     round_num = 0
-    while pending:
+    while pending and round_num < MAX_ROUNDS:
         round_num += 1
         done_count = 0
         fail_count = 0
@@ -31,7 +35,12 @@ def poll_all():
         
         for t in pending[:]:  # iterate over copy
             try:
-                resp = requests.get(API_POLL.format(t['task_id']), headers=HEADERS, timeout=30)
+                resp = requests.get(
+                    API_POLL.format(t['task_id']),
+                    headers=mineru_headers(content_type=False),
+                    timeout=30,
+                )
+                raise_for_auth(resp)
                 data = resp.json()
                 state = data.get('data', {}).get('state', 'unknown')
                 
@@ -74,6 +83,8 @@ def poll_all():
                 else:
                     running_count += 1
                     
+            except CredentialError:
+                raise
             except Exception as e:
                 print(f"  ⚠️ [{round_num}] {t['filename'][:40]} - poll error: {str(e)[:50]}")
         
@@ -88,9 +99,17 @@ def poll_all():
         
         time.sleep(20)
     
+    if pending:
+        print(f"\n⚠️ Se alcanzó el límite de {MAX_ROUNDS} rondas con {len(pending)} tarea(s) "
+              f"aún en curso. Vuelve a ejecutar para seguir esperándolas.")
+
+    # Guardar el estado final, no solo el de rondas intermedias.
+    with open('/tmp/mineru_tasks.json', 'w') as f:
+        json.dump(tasks, f, indent=2)
+
     # Final summary
-    done = sum(1 for t in tasks if t['status'] == 'done')
-    failed = sum(1 for t in tasks if t['status'] == 'failed')
+    done = sum(1 for t in tasks if t.get('status') == 'done')
+    failed = sum(1 for t in tasks if t.get('status') == 'failed')
     print(f"\n=== FINAL ===")
     print(f"Done: {done}/{len(tasks)}")
     print(f"Failed: {failed}/{len(tasks)}")

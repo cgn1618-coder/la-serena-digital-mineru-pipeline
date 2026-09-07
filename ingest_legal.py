@@ -3,11 +3,9 @@ Ingest the Chilean environmental legal framework into Neo4j.
 Creates nodes: LegalFramework, Law, Decree, Institution, Regulation
 and relationships between them.
 """
-import os
-from neo4j import GraphDatabase
+from neo4j.exceptions import Neo4jError
 
-URI = "bolt://localhost:7687"
-AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD"))
+from auth import neo4j_driver
 
 # Legal framework structure based on marco_legal_ambiental_chile.md
 FRAMEWORK = {
@@ -50,15 +48,17 @@ FRAMEWORK = {
 }
 
 def ingest():
-    driver = GraphDatabase.driver(URI, auth=AUTH)
+    driver = neo4j_driver()  # exige y verifica NEO4J_PASSWORD
     
     with driver.session() as session:
         # Create constraints
         for label in ["Institution", "Law", "Decree", "Regulation", "Zone", "InternationalTreaty"]:
             try:
                 session.run(f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{label}) REQUIRE n.name IS UNIQUE")
-            except:
-                pass
+            except Neo4jError as exc:
+                # No toda edición de Neo4j admite constraints: no es fatal,
+                # pero tampoco debe desaparecer en silencio.
+                print(f"  ⚠️ Constraint sobre {label} no creada: {exc}")
         
         # Create institutions
         for inst in FRAMEWORK["institutions"]:

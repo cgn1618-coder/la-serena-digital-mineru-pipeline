@@ -9,7 +9,7 @@ import time
 import os
 import sys
 
-TOKEN = os.getenv("MINERU_TOKEN")
+from auth import CredentialError, mineru_headers, raise_for_auth
 
 BASE_URL = "https://laserenadigital.cl"
 PDF_DIR = "/root/portal/static/pdfs"
@@ -18,11 +18,6 @@ API_SUBMIT = "https://mineru.net/api/v4/extract/task"
 API_POLL = "https://mineru.net/api/v4/extract/task/{}"
 API_BATCH = "https://mineru.net/api/v4/file-urls/batch"
 API_BATCH_RESULTS = "https://mineru.net/api/v4/extract-results/batch/{}"
-
-HEADERS = {
-    "Authorization": f"Bearer {TOKEN}",
-    "Content-Type": "application/json"
-}
 
 def get_pdf_files():
     """Get all PDF files with their URLs."""
@@ -64,7 +59,8 @@ def submit_batch(pdfs, batch_size=10):
         }
         
         try:
-            resp = requests.post(API_BATCH, headers=HEADERS, json=payload, timeout=120)
+            resp = requests.post(API_BATCH, headers=mineru_headers(), json=payload, timeout=120)
+            raise_for_auth(resp)
             data = resp.json()
             
             if data.get('code') == 0:
@@ -83,6 +79,10 @@ def submit_batch(pdfs, batch_size=10):
                     task = submit_single(p)
                     if task:
                         all_tasks.append(task)
+        except CredentialError:
+            # Un fallo de credenciales afecta a todo el lote: reintentar por
+            # archivo solo gastaría tiempo repitiendo el mismo rechazo.
+            raise
         except Exception as e:
             print(f"  Batch submit failed: {e}")
             # Fallback to individual
@@ -108,7 +108,8 @@ def submit_single(pdf):
         "enable_table": True
     }
     try:
-        resp = requests.post(API_SUBMIT, headers=HEADERS, json=payload, timeout=60)
+        resp = requests.post(API_SUBMIT, headers=mineru_headers(), json=payload, timeout=60)
+        raise_for_auth(resp)
         data = resp.json()
         if data.get('code') == 0:
             task_id = data['data']['task_id']
@@ -116,6 +117,8 @@ def submit_single(pdf):
             return {"filename": pdf['filename'], "task_id": task_id, "status": "submitted"}
         else:
             print(f"  {pdf['filename'][:50]}: ERROR - {data.get('msg')}")
+    except CredentialError:
+        raise
     except Exception as e:
         print(f"  {pdf['filename'][:50]}: EXCEPTION - {e}")
     return None
@@ -131,9 +134,10 @@ def poll_batch_results(tasks):
             try:
                 resp = requests.get(
                     API_BATCH_RESULTS.format(batch_id),
-                    headers=HEADERS,
+                    headers=mineru_headers(),
                     timeout=60
                 )
+                raise_for_auth(resp)
                 data = resp.json()
                 
                 if data.get('code') == 0:
@@ -152,6 +156,8 @@ def poll_batch_results(tasks):
                             elif r.get('state') == 'failed':
                                 print(f"  FAILED: {fname} - {r.get('err_msg', '')}")
                         break
+            except CredentialError:
+                raise
             except Exception as e:
                 print(f"  Poll error: {e}")
             
@@ -167,7 +173,8 @@ def poll_single(task):
     task_id = task['task_id']
     for attempt in range(20):
         try:
-            resp = requests.get(API_POLL.format(task_id), headers=HEADERS, timeout=30)
+            resp = requests.get(API_POLL.format(task_id), headers=mineru_headers(), timeout=30)
+            raise_for_auth(resp)
             data = resp.json()
             state = data.get('data', {}).get('state', '')
             
@@ -182,8 +189,10 @@ def poll_single(task):
                 print(f"  FAILED: {task['filename'][:50]} → {data['data'].get('err_msg', '')}")
                 task['status'] = 'failed'
                 break
+        except CredentialError:
+            raise
         except Exception as e:
-            pass
+            print(f"  Poll error en {task['filename'][:40]}: {e}")
         time.sleep(10)
 
 def download_zip(filename, url):
@@ -208,6 +217,10 @@ def download_zip(filename, url):
         print(f"    Download failed: {e}")
 
 def main():
+    # Puerta de credenciales: si falta o caducó el token, abortamos aquí y no
+    # tras haber listado y subido archivos.
+    mineru_headers()
+
     pdfs = get_pdf_files()
     total_size = sum(p['size_mb'] for p in pdfs)
     

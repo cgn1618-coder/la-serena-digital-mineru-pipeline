@@ -5,18 +5,11 @@ Creates Document nodes with rich metadata + Figure nodes linked to them.
 """
 import os, json, zipfile, hashlib, uuid, re
 from datetime import datetime
-from neo4j import GraphDatabase
+from auth import neo4j_driver
 
-NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD"))
 ZIPS_DIR = "/root/pipeline/mineru_output"
 FIGURES_DIR = "/root/portal/static/figures"
 EXTRACT_DIR = "/tmp/mineru_ingest"
-
-os.makedirs(FIGURES_DIR, exist_ok=True)
-os.makedirs(EXTRACT_DIR, exist_ok=True)
-
-driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
 
 def extract_metadata(md_text):
     """Extract title and authors from markdown."""
@@ -31,9 +24,7 @@ def extract_metadata(md_text):
             title = stripped[2:].strip()
             break
     
-    # Look for author patterns
-    author_section = md_text[:2000]  # First 2000 chars
-    # Common patterns: "By ...", "Author:", "NAME1, NAME2"
+    # Look for author patterns: "By ...", "Author:", "NAME1, NAME2"
     for line in lines[:30]:
         if not line.startswith('#') and len(line) > 10 and len(line) < 200:
             # Look for university affiliations or author names
@@ -45,7 +36,7 @@ def extract_metadata(md_text):
     
     return title, authors[:3]
 
-def ingest_zip(zip_path, category):
+def ingest_zip(zip_path, category, driver):
     """Process one ZIP: extract, read metadata, create Neo4j nodes."""
     zip_name = os.path.basename(zip_path).replace('.zip', '')
     
@@ -146,7 +137,7 @@ def ingest_zip(zip_path, category):
                         category=category
                     )
                 except Exception as e:
-                    pass  # Skip broken images
+                    print(f"    ⚠️ Figura {fig['img_path']} omitida: {e}")
         
         return {
             "title": title[:80],
@@ -156,6 +147,17 @@ def ingest_zip(zip_path, category):
         }
 
 def main():
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    os.makedirs(EXTRACT_DIR, exist_ok=True)
+
+    driver = neo4j_driver()  # exige y verifica NEO4J_PASSWORD
+    try:
+        run_ingest(driver)
+    finally:
+        driver.close()
+
+
+def run_ingest(driver):
     stats = {"geologia": [], "ecologia": []}
     
     for category in ["geologia", "ecologia"]:
@@ -165,7 +167,7 @@ def main():
         
         for i, zf_name in enumerate(zips):
             zip_path = os.path.join(cat_dir, zf_name)
-            result = ingest_zip(zip_path, category)
+            result = ingest_zip(zip_path, category, driver)
             if result:
                 stats[category].append(result)
                 print(f"  [{i+1}/{len(zips)}] {result['title']} | {result['figures']} figs, {result['tables']} tables, {result['chars']:,} chars")
@@ -193,4 +195,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    driver.close()
